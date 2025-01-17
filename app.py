@@ -24,18 +24,18 @@ def generate_script(prompt, max_length=600):
     script = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return script
 
-# Extract skills/roles from the generated script
-def extract_skills_from_script(script):
-    """Extract possible skills/roles from the movie script."""
-    roles_list = ["Acting", "Directing", "Editing", "Animation", "VFX", "Voiceover"]
-    found_roles = []
+# # Extract skills/roles from the generated script
+# def extract_skills_from_script(script):
+#     """Extract possible skills/roles from the movie script."""
+#     roles_list = ["Acting", "Directing", "Editing", "Animation", "VFX", "Voiceover"]
+#     found_roles = []
 
-    # Search for keywords in the script (simplified, can be expanded with more advanced NLP)
-    for role in roles_list:
-        if re.search(r'\b' + re.escape(role) + r'\b', script, re.IGNORECASE):
-            found_roles.append(role)
+#     # Search for keywords in the script (simplified, can be expanded with more advanced NLP)
+#     for role in roles_list:
+#         if re.search(r'\b' + re.escape(role) + r'\b', script, re.IGNORECASE):
+#             found_roles.append(role)
 
-    return found_roles
+#     return found_roles
 
 # Function to convert text to audio using gTTS
 def text_to_audio(text):
@@ -63,13 +63,13 @@ if st.button("Generate Script"):
         st.write(script_snippet)
 
         # Extract skills/roles from the generated script
-        extracted_skills = extract_skills_from_script(script_snippet)
+        # extracted_skills = extract_skills_from_script(script_snippet)
         
-        if extracted_skills:
-            st.subheader("Extracted Skills/Roles:")
-            st.write(", ".join(extracted_skills))
-        else:
-            st.warning("No relevant skills or roles found in the script.")
+        # if extracted_skills:
+        #     st.subheader("Extracted Skills/Roles:")
+        #     st.write(", ".join(extracted_skills))
+        # else:
+        #     st.warning("No relevant skills or roles found in the script.")
         
         # Convert script to audio
         st.subheader("Audio Version of the Script:")
