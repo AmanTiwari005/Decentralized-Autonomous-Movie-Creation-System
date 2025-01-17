@@ -1,6 +1,9 @@
 import streamlit as st
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import re
+from gtts import gTTS
+import os
+from tempfile import NamedTemporaryFile
 
 # Load the AI Model
 @st.cache_resource
@@ -34,6 +37,15 @@ def extract_skills_from_script(script):
 
     return found_roles
 
+# Function to convert text to audio using gTTS
+def text_to_audio(text):
+    """Converts the provided text to an audio file using gTTS."""
+    tts = gTTS(text, lang='en')
+    # Save audio to a temporary file
+    temp_audio = NamedTemporaryFile(delete=False, suffix=".mp3")
+    tts.save(temp_audio.name)
+    return temp_audio.name
+
 # Streamlit App
 st.title("Decentralized Autonomous Movie Creation System")
 
@@ -58,3 +70,14 @@ if st.button("Generate Script"):
             st.write(", ".join(extracted_skills))
         else:
             st.warning("No relevant skills or roles found in the script.")
+        
+        # Convert script to audio
+        st.subheader("Audio Version of the Script:")
+        audio_file = text_to_audio(script_snippet)
+        
+        # Provide download link for the audio file
+        with open(audio_file, "rb") as audio:
+            st.download_button("Download Audio File", audio, file_name="script_audio.mp3", mime="audio/mp3")
+        
+        # Clean up the temporary audio file
+        os.remove(audio_file)
