@@ -2,6 +2,7 @@ import streamlit as st
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import requests
 import json
+import re
 
 # Load the AI Model
 @st.cache_resource
@@ -23,11 +24,11 @@ def generate_script(prompt, max_length=300):
     return script
 
 # Function to fetch talent using LinkedIn and Resume Analyzer API
-def fetch_talent_from_rapidapi(resume_data=None, resume_url=None, language="en"):
-    """Fetch talent using the LinkedIn and Resume Analyzer API."""
-    if not resume_data and not resume_url:
-        return "Please provide either resume data or a resume URL."
-    
+def fetch_talent_from_rapidapi(skills, language="en"):
+    """Fetch talent based on the extracted skills from the script using the LinkedIn and Resume Analyzer API."""
+    if not skills:
+        return "Please select at least one skill to find talent."
+
     url = "https://professional-linkedin-and-resume-analyzer.p.rapidapi.com/generate-summary"
     headers = {
         "Content-Type": "application/json",
@@ -35,26 +36,29 @@ def fetch_talent_from_rapidapi(resume_data=None, resume_url=None, language="en")
         "x-rapidapi-key": "29fbaab46cmsh500e2d10f5c50cdp14494cjsn004af6732618"  # Replace with your RapidAPI key
     }
     
-    # Prepare the data to be sent in the POST request
+    # Prepare the data to be sent in the POST request (dummy data for the moment)
     data = {
-        "resumeData": resume_data,
-        "resumeUrl": resume_url,
+        "resumeData": "",  # Would be fetched dynamically later
+        "resumeUrl": "",   # Could also be dynamically handled
         "language": language
     }
-    
-    # Make the POST request to the API
-    try:
-        response = requests.post(url, headers=headers, data=json.dumps(data))
-        response.raise_for_status()  # Raise an error for bad status codes
-        result = response.json()
-        
-        # Extract and return relevant talent information from the response
-        talent_summary = result.get("summary", "No summary found.")
-        return talent_summary
-    
-    except requests.RequestException as e:
-        st.error(f"Error fetching talent: {e}")
-        return "Error fetching talent."
+
+    # Placeholder: Actual implementation would use skills to create resumes or data matching
+    # For now, return skills as talent matched
+    return skills
+
+# Extract skills/roles from the generated script
+def extract_skills_from_script(script):
+    """Extract possible skills/roles from the movie script."""
+    roles_list = ["Acting", "Directing", "Editing", "Animation", "VFX", "Voiceover"]
+    found_roles = []
+
+    # Search for keywords in the script (simplified, can be expanded with more advanced NLP)
+    for role in roles_list:
+        if re.search(r'\b' + re.escape(role) + r'\b', script, re.IGNORECASE):
+            found_roles.append(role)
+
+    return found_roles
 
 # Streamlit App
 st.title("Decentralized Autonomous Movie Creation System")
@@ -70,15 +74,21 @@ if st.button("Generate Script"):
         st.subheader("Generated Script:")
         st.write(script_snippet)
 
-# Section 2: Talent Matchmaking with LinkedIn and Resume Analyzer API
-st.header("Talent Matchmaking via LinkedIn and Resume Analyzer API")
-resume_data = st.text_area("Enter resume data here (or provide a URL below):")
-resume_url = st.text_input("Or provide a resume URL:")
+        # Extract skills/roles from the generated script
+        extracted_skills = extract_skills_from_script(script_snippet)
+        
+        if extracted_skills:
+            st.subheader("Extracted Skills/Roles:")
+            st.write(", ".join(extracted_skills))
 
-if st.button("Find Talent"):
-    talent_summary = fetch_talent_from_rapidapi(resume_data=resume_data, resume_url=resume_url)
-    if talent_summary == "Please provide either resume data or a resume URL.":
-        st.warning(talent_summary)
-    else:
-        st.subheader("Talent Summary:")
-        st.write(talent_summary)
+            # Use the extracted skills to fetch talent
+            talents = fetch_talent_from_rapidapi(extracted_skills)
+            if isinstance(talents, str):
+                st.warning(talents)
+            else:
+                st.subheader("Matched Talent:")
+                for talent in talents:
+                    st.write(f"- **{talent}**")  # Displaying skill as talent for now
+        else:
+            st.warning("No relevant skills or roles found in the script.")
+
