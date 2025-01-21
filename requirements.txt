@@ -3,3 +3,4 @@ gtts
 python-dotenv
 langchain_groq
 openai
+llama-cpp-python
