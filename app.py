@@ -15,27 +15,37 @@ def load_model():
 
 model, tokenizer = load_model()
 
-def generate_script(prompt, max_length=600):
-    """Generates a longer movie script snippet based on the given prompt."""
+def generate_script(prompt, max_length=1000):
+    """Generates a meaningful movie script snippet based on the given prompt."""
     if not prompt.strip():
         return "Please provide a valid prompt."
     inputs = tokenizer.encode(prompt, return_tensors="pt")
-    outputs = model.generate(inputs, max_length=max_length, num_return_sequences=1, no_repeat_ngram_size=2, temperature=0.7)
+    outputs = model.generate(
+        inputs,
+        max_length=max_length,
+        num_return_sequences=1,
+        no_repeat_ngram_size=3,
+        temperature=0.8,
+        top_p=0.95,
+        top_k=50,
+        do_sample=True
+    )
     script = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return script
 
-# # Extract skills/roles from the generated script
-# def extract_skills_from_script(script):
-#     """Extract possible skills/roles from the movie script."""
-#     roles_list = ["Acting", "Directing", "Editing", "Animation", "VFX", "Voiceover"]
-#     found_roles = []
-
-#     # Search for keywords in the script (simplified, can be expanded with more advanced NLP)
-#     for role in roles_list:
-#         if re.search(r'\b' + re.escape(role) + r'\b', script, re.IGNORECASE):
-#             found_roles.append(role)
-
-#     return found_roles
+# Function to enhance the script with formatting and structure
+def enhance_script(script):
+    """Enhances the script by adding basic structure like scene headers and dialogues."""
+    scenes = script.split("\n\n")
+    enhanced_script = ""
+    for i, scene in enumerate(scenes):
+        enhanced_script += f"SCENE {i+1}:\n"
+        sentences = re.split(r'(?<=[.!?]) +', scene)
+        for sentence in sentences:
+            if sentence.strip():
+                enhanced_script += f"    {sentence.strip()}\n"
+        enhanced_script += "\n"
+    return enhanced_script
 
 # Function to convert text to audio using gTTS
 def text_to_audio(text):
@@ -52,32 +62,24 @@ st.title("Decentralized Autonomous Movie Creation System")
 # Section 1: Script Generation
 st.header("AI-Powered Script Generator")
 prompt = st.text_area("Enter a prompt for the movie script:")
-max_length = st.slider("Select the script length (tokens):", min_value=300, max_value=1000, value=600)
+max_length = st.slider("Select the script length (tokens):", min_value=300, max_value=1500, value=1000)
 
 if st.button("Generate Script"):
     script_snippet = generate_script(prompt, max_length=max_length)
     if script_snippet == "Please provide a valid prompt.":
         st.warning(script_snippet)
     else:
+        enhanced_snippet = enhance_script(script_snippet)
         st.subheader("Generated Script:")
-        st.write(script_snippet)
+        st.text_area("Enhanced Script:", value=enhanced_snippet, height=400)
 
-        # Extract skills/roles from the generated script
-        # extracted_skills = extract_skills_from_script(script_snippet)
-        
-        # if extracted_skills:
-        #     st.subheader("Extracted Skills/Roles:")
-        #     st.write(", ".join(extracted_skills))
-        # else:
-        #     st.warning("No relevant skills or roles found in the script.")
-        
         # Convert script to audio
         st.subheader("Audio Version of the Script:")
-        audio_file = text_to_audio(script_snippet)
-        
+        audio_file = text_to_audio(enhanced_snippet)
+
         # Provide download link for the audio file
         with open(audio_file, "rb") as audio:
             st.download_button("Download Audio File", audio, file_name="script_audio.mp3", mime="audio/mp3")
-        
+
         # Clean up the temporary audio file
         os.remove(audio_file)
