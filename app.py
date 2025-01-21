@@ -3,7 +3,7 @@ import streamlit as st
 import re
 from gtts import gTTS
 from tempfile import NamedTemporaryFile
-from your_groq_library import ChatGroq  # Replace with the actual Groq API library import
+from langchain_groq import ChatGroq  
 
 # Function to initialize the Groq model
 def init_groq_model():
