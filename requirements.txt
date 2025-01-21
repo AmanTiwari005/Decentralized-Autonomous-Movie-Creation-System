@@ -2,3 +2,4 @@ streamlit
 gtts
 python-dotenv
 langchain_groq
+openai
