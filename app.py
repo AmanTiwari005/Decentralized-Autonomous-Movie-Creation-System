@@ -1,25 +1,15 @@
 import os
+import requests
 import streamlit as st
 from gtts import gTTS
 from tempfile import NamedTemporaryFile
-from llama_cpp import Llama  # Import LLaMA model support
 
-# Function to initialize the LLaMA model
-@st.cache_resource
-def init_llama_model():
-    model_path = os.getenv('LLAMA_MODEL_PATH', 'llama-3b.ggmlv3.q4_0.bin')  # Path to your LLaMA model file
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"LLaMA model file not found at {model_path}. Please set LLAMA_MODEL_PATH.")
-    return Llama(model_path=model_path, n_ctx=2048)
-
-# Initialize the LLaMA model
-llama_model = init_llama_model()
-
-# Function to generate script based on prompt and genre using LLaMA
-def generate_script(prompt, genre, max_tokens=300):
-    """Generates a meaningful movie script snippet based on the given prompt and genre using LLaMA."""
-    if not prompt.strip():
-        return "Please provide a valid prompt."
+# Function to generate text using Hugging Face's Inference API
+def generate_script_hf(prompt, genre, max_tokens=300):
+    """Generates a movie script snippet using Hugging Face's hosted LLaMA model."""
+    api_key = os.getenv("HF_API_KEY")
+    if not api_key:
+        raise ValueError("Hugging Face API key not found. Set it as HF_API_KEY environment variable.")
     
     # Add a genre-specific prefix to the prompt
     genre_prompts = {
@@ -33,9 +23,29 @@ def generate_script(prompt, genre, max_tokens=300):
     genre_prefix = genre_prompts.get(genre, "Write a scene:")
     full_prompt = f"{genre_prefix} {prompt}"
     
-    # Generate text with LLaMA
-    output = llama_model(full_prompt, max_tokens=max_tokens, stop=["SCENE", "\n\n"])
-    return output["choices"][0]["text"].strip()
+    # API endpoint and parameters
+    model = "meta-llama/Llama-2-7b-chat-hf"  # Replace with your chosen LLaMA model on Hugging Face
+    headers = {"Authorization": f"Bearer {api_key}"}
+    payload = {
+        "inputs": full_prompt,
+        "parameters": {
+            "max_new_tokens": max_tokens,
+            "temperature": 0.7,
+            "stop": ["SCENE", "\n\n"]
+        }
+    }
+    
+    response = requests.post(
+        f"https://api-inference.huggingface.co/models/{model}",
+        headers=headers,
+        json=payload
+    )
+    
+    if response.status_code != 200:
+        raise ValueError(f"Error from Hugging Face API: {response.text}")
+    
+    result = response.json()
+    return result.get("generated_text", "No text generated")
 
 # Function to convert text to audio using gTTS
 def text_to_audio(text):
@@ -55,14 +65,17 @@ genre = st.selectbox("Select Movie Genre", ["Action", "Comedy", "Romance", "Horr
 max_tokens = st.slider("Select the script length (tokens):", min_value=100, max_value=1000, value=300)
 
 if st.button("Generate Script"):
-    script_snippet = generate_script(prompt, genre, max_tokens=max_tokens)
-    st.subheader("Generated Script:")
-    st.text_area("Script:", value=script_snippet, height=300)
-    
-    # Convert script to audio
-    audio_file = text_to_audio(script_snippet)
-    with open(audio_file, "rb") as audio:
-        st.download_button("Download Audio File", audio, file_name="script_audio.mp3", mime="audio/mp3")
-
-    # Clean up the temporary audio file
-    os.remove(audio_file)
+    try:
+        script_snippet = generate_script_hf(prompt, genre, max_tokens=max_tokens)
+        st.subheader("Generated Script:")
+        st.text_area("Script:", value=script_snippet, height=300)
+        
+        # Convert script to audio
+        audio_file = text_to_audio(script_snippet)
+        with open(audio_file, "rb") as audio:
+            st.download_button("Download Audio File", audio, file_name="script_audio.mp3", mime="audio/mp3")
+        
+        # Clean up the temporary audio file
+        os.remove(audio_file)
+    except Exception as e:
+        st.error(f"Error: {e}")
