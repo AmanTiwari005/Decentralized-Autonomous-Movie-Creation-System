@@ -1,37 +1,45 @@
+import os
 import streamlit as st
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import re
 from gtts import gTTS
-import os
 from tempfile import NamedTemporaryFile
+from your_groq_library import ChatGroq  # Replace with the actual Groq API library import
 
-# Load the AI Model
-@st.cache_resource
-def load_model():
-    model_name = "gpt2"
-    model = GPT2LMHeadModel.from_pretrained(model_name)
-    tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-    return model, tokenizer
+# Function to initialize the Groq model
+def init_groq_model():
+    groq_api_key = os.getenv('GROQ_API_KEY')
+    if not groq_api_key:
+        raise ValueError("GROQ_API_KEY not found in environment variables.")
+    return ChatGroq(
+        groq_api_key=groq_api_key, model_name="llama-3.1-70b-versatile", temperature=0.2
+    )
 
-model, tokenizer = load_model()
+# Initialize the Groq model
+groq_model = init_groq_model()
 
-# Function to generate script based on prompt
-def generate_script(prompt, max_length=1000):
-    """Generates a meaningful movie script snippet based on the given prompt."""
+# Function to generate script based on prompt and genre using Groq (Llama model)
+def generate_script(prompt, genre, max_length=1000):
+    """Generates a meaningful movie script snippet based on the given prompt and genre using Groq."""
     if not prompt.strip():
         return "Please provide a valid prompt."
-    inputs = tokenizer.encode(prompt, return_tensors="pt")
-    outputs = model.generate(
-        inputs,
-        max_length=max_length,
-        num_return_sequences=1,
-        no_repeat_ngram_size=3,
-        temperature=0.8,
-        top_p=0.95,
-        top_k=50,
-        do_sample=True
-    )
-    script = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    # Adjust the prompt based on the selected genre
+    genre_prompts = {
+        "Action": "Create an intense and fast-paced action scene where ",
+        "Comedy": "Write a funny scene that involves a humorous misunderstanding where ",
+        "Romance": "Write a heartfelt romantic scene where ",
+        "Horror": "Write a spooky and suspenseful horror scene where ",
+        "Sci-Fi": "Create a futuristic science fiction scene where ",
+        "Drama": "Write a deep emotional drama scene where "
+    }
+    
+    genre_prompt = genre_prompts.get(genre, "")
+    full_prompt = genre_prompt + prompt
+    
+    # Query the Groq model to generate the script
+    response = groq_model.chat(full_prompt, max_length=max_length)
+    script = response['generated_text'].strip()
+    
     return script
 
 # Function to enhance the script with formatting and structure
@@ -63,10 +71,11 @@ st.title("Decentralized Autonomous Movie Creation System")
 # Section 1: Script Generation
 st.header("AI-Powered Script Generator")
 prompt = st.text_area("Enter a prompt for the movie script:")
+genre = st.selectbox("Select Movie Genre", ["Action", "Comedy", "Romance", "Horror", "Sci-Fi", "Drama"])
 max_length = st.slider("Select the script length (tokens):", min_value=300, max_value=1500, value=1000)
 
 if st.button("Generate Script"):
-    script_snippet = generate_script(prompt, max_length=max_length)
+    script_snippet = generate_script(prompt, genre, max_length=max_length)
     if script_snippet == "Please provide a valid prompt.":
         st.warning(script_snippet)
     else:
