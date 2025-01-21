@@ -1,56 +1,48 @@
 import os
+import openai
 import streamlit as st
 import re
 from gtts import gTTS
 from tempfile import NamedTemporaryFile
-from langchain_groq import ChatGroq  
 
-# Function to initialize the Groq model
-def init_groq_model():
-    groq_api_key = os.getenv('GROQ_API_KEY')
-    if not groq_api_key:
-        raise ValueError("GROQ_API_KEY not found in environment variables.")
-    return ChatGroq(
-        groq_api_key=groq_api_key, model_name="llama-3.1-70b-versatile", temperature=0.2
-    )
+# Set up OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Initialize the Groq model
-groq_model = init_groq_model()
-
-# Function to generate script based on prompt and genre using Groq (Llama model)
-def generate_script(prompt, genre, max_length=1000):
-    """Generates a meaningful movie script snippet based on the given prompt and genre using Groq."""
+# Function to generate script using GPT-4
+def generate_script(prompt, genre, max_tokens=1000):
+    """Generates a meaningful movie script snippet based on the given prompt and genre using GPT-4."""
     if not prompt.strip():
         return "Please provide a valid prompt."
     
     # Adjust the prompt based on the selected genre
     genre_prompts = {
-        "Action": "Create an intense and fast-paced action scene where ",
-        "Comedy": "Write a funny scene that involves a humorous misunderstanding where ",
+        "Action": "Write an intense and fast-paced action scene where ",
+        "Comedy": "Create a funny scene that involves a humorous misunderstanding where ",
         "Romance": "Write a heartfelt romantic scene where ",
-        "Horror": "Write a spooky and suspenseful horror scene where ",
-        "Sci-Fi": "Create a futuristic science fiction scene where ",
-        "Drama": "Write a deep emotional drama scene where "
+        "Horror": "Create a spooky and suspenseful horror scene where ",
+        "Sci-Fi": "Write a futuristic science fiction scene where ",
+        "Drama": "Create a deep emotional drama scene where "
     }
     
     genre_prompt = genre_prompts.get(genre, "")
     full_prompt = genre_prompt + prompt
-    
-    # Format the messages for Groq API
-    messages = [
-        {"role": "system", "content": "You are a scriptwriter AI specialized in creating movie scripts."},
-        {"role": "user", "content": full_prompt}
-    ]
-    
+
     try:
-        # Call the Groq model with the formatted messages
-        response = groq_model.generate(messages, max_length=max_length)
-        script = response['generated_text'].strip()
+        # Call GPT-4
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a scriptwriter AI specialized in creating movie scripts."},
+                {"role": "user", "content": full_prompt}
+            ],
+            max_tokens=max_tokens,
+            temperature=0.7,
+        )
+        
+        script = response['choices'][0]['message']['content'].strip()
         return script
     except Exception as e:
         return f"Error generating script: {str(e)}"
-
-
 
 # Function to enhance the script with formatting and structure
 def enhance_script(script):
@@ -82,10 +74,10 @@ st.title("Decentralized Autonomous Movie Creation System")
 st.header("AI-Powered Script Generator")
 prompt = st.text_area("Enter a prompt for the movie script:")
 genre = st.selectbox("Select Movie Genre", ["Action", "Comedy", "Romance", "Horror", "Sci-Fi", "Drama"])
-max_length = st.slider("Select the script length (tokens):", min_value=300, max_value=1500, value=1000)
+max_tokens = st.slider("Select the script length (tokens):", min_value=300, max_value=1500, value=1000)
 
 if st.button("Generate Script"):
-    script_snippet = generate_script(prompt, genre, max_length=max_length)
+    script_snippet = generate_script(prompt, genre, max_tokens=max_tokens)
     if script_snippet == "Please provide a valid prompt.":
         st.warning(script_snippet)
     else:
