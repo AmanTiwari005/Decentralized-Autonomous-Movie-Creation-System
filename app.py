@@ -36,8 +36,11 @@ def generate_script(prompt, genre, max_length=1000):
     genre_prompt = genre_prompts.get(genre, "")
     full_prompt = genre_prompt + prompt
     
-    # Query the Groq model using the correct method (assuming it's .generate())
-    response = groq_model.generate(full_prompt, max_length=max_length)  # Replaced .chat() with .generate()
+    # Format the prompt into a conversation-style input (list of message dicts)
+    messages = [{"role": "user", "content": full_prompt}]
+    
+    # Query the Groq model using the correct method
+    response = groq_model.generate(messages, max_length=max_length)  # Pass formatted messages
     script = response['generated_text'].strip()  # Extract generated text
     
     return script
