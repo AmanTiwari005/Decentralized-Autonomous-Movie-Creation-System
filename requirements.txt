@@ -1,4 +1,5 @@
+openai
+gtts
 streamlit
-transformers
-torch
-gTTS
+dotenv
+langchain_groq
