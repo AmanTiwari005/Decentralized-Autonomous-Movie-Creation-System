@@ -1,5 +1,4 @@
-openai
-gtts
 streamlit
-dotenv
+gtts
+python-dotenv
 langchain_groq
