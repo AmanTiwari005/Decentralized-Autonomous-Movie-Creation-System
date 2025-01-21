@@ -1,68 +1,46 @@
 import os
-import openai
 import streamlit as st
-import re
 from gtts import gTTS
 from tempfile import NamedTemporaryFile
+from llama_cpp import Llama  # Import LLaMA model support
 
-# Set up OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Function to initialize the LLaMA model
+@st.cache_resource
+def init_llama_model():
+    model_path = os.getenv('LLAMA_MODEL_PATH', 'llama-3b.ggmlv3.q4_0.bin')  # Path to your LLaMA model file
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"LLaMA model file not found at {model_path}. Please set LLAMA_MODEL_PATH.")
+    return Llama(model_path=model_path, n_ctx=2048)
 
-# Function to generate script using GPT-4
-def generate_script(prompt, genre, max_tokens=1000):
-    """Generates a meaningful movie script snippet based on the given prompt and genre using GPT-4."""
+# Initialize the LLaMA model
+llama_model = init_llama_model()
+
+# Function to generate script based on prompt and genre using LLaMA
+def generate_script(prompt, genre, max_tokens=300):
+    """Generates a meaningful movie script snippet based on the given prompt and genre using LLaMA."""
     if not prompt.strip():
         return "Please provide a valid prompt."
     
-    # Adjust the prompt based on the selected genre
+    # Add a genre-specific prefix to the prompt
     genre_prompts = {
-        "Action": "Write an intense and fast-paced action scene where ",
-        "Comedy": "Create a funny scene that involves a humorous misunderstanding where ",
-        "Romance": "Write a heartfelt romantic scene where ",
-        "Horror": "Create a spooky and suspenseful horror scene where ",
-        "Sci-Fi": "Write a futuristic science fiction scene where ",
-        "Drama": "Create a deep emotional drama scene where "
+        "Action": "Write an intense and fast-paced action scene:",
+        "Comedy": "Write a funny and humorous scene:",
+        "Romance": "Write a romantic and heartfelt scene:",
+        "Horror": "Write a spooky and suspenseful horror scene:",
+        "Sci-Fi": "Write a futuristic science fiction scene:",
+        "Drama": "Write an emotional and dramatic scene:"
     }
+    genre_prefix = genre_prompts.get(genre, "Write a scene:")
+    full_prompt = f"{genre_prefix} {prompt}"
     
-    genre_prompt = genre_prompts.get(genre, "")
-    full_prompt = genre_prompt + prompt
-
-    try:
-        # Call GPT-4
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a scriptwriter AI specialized in creating movie scripts."},
-                {"role": "user", "content": full_prompt}
-            ],
-            max_tokens=max_tokens,
-            temperature=0.7,
-        )
-        
-        script = response['choices'][0]['message']['content'].strip()
-        return script
-    except Exception as e:
-        return f"Error generating script: {str(e)}"
-
-# Function to enhance the script with formatting and structure
-def enhance_script(script):
-    """Enhances the script by adding basic structure like scene headers and dialogues."""
-    scenes = script.split("\n\n")
-    enhanced_script = ""
-    for i, scene in enumerate(scenes):
-        enhanced_script += f"SCENE {i+1}:\n"
-        sentences = re.split(r'(?<=[.!?]) +', scene)
-        for sentence in sentences:
-            if sentence.strip():
-                enhanced_script += f"    {sentence.strip()}\n"
-        enhanced_script += "\n"
-    return enhanced_script
+    # Generate text with LLaMA
+    output = llama_model(full_prompt, max_tokens=max_tokens, stop=["SCENE", "\n\n"])
+    return output["choices"][0]["text"].strip()
 
 # Function to convert text to audio using gTTS
 def text_to_audio(text):
     """Converts the provided text to an audio file using gTTS."""
     tts = gTTS(text, lang='en')
-    # Save audio to a temporary file
     temp_audio = NamedTemporaryFile(delete=False, suffix=".mp3")
     tts.save(temp_audio.name)
     return temp_audio.name
@@ -74,24 +52,17 @@ st.title("Decentralized Autonomous Movie Creation System")
 st.header("AI-Powered Script Generator")
 prompt = st.text_area("Enter a prompt for the movie script:")
 genre = st.selectbox("Select Movie Genre", ["Action", "Comedy", "Romance", "Horror", "Sci-Fi", "Drama"])
-max_tokens = st.slider("Select the script length (tokens):", min_value=300, max_value=1500, value=1000)
+max_tokens = st.slider("Select the script length (tokens):", min_value=100, max_value=1000, value=300)
 
 if st.button("Generate Script"):
     script_snippet = generate_script(prompt, genre, max_tokens=max_tokens)
-    if script_snippet == "Please provide a valid prompt.":
-        st.warning(script_snippet)
-    else:
-        enhanced_snippet = enhance_script(script_snippet)
-        st.subheader("Generated Script:")
-        st.text_area("Enhanced Script:", value=enhanced_snippet, height=400)
+    st.subheader("Generated Script:")
+    st.text_area("Script:", value=script_snippet, height=300)
+    
+    # Convert script to audio
+    audio_file = text_to_audio(script_snippet)
+    with open(audio_file, "rb") as audio:
+        st.download_button("Download Audio File", audio, file_name="script_audio.mp3", mime="audio/mp3")
 
-        # Convert script to audio
-        st.subheader("Audio Version of the Script:")
-        audio_file = text_to_audio(enhanced_snippet)
-
-        # Provide download link for the audio file
-        with open(audio_file, "rb") as audio:
-            st.download_button("Download Audio File", audio, file_name="script_audio.mp3", mime="audio/mp3")
-
-        # Clean up the temporary audio file
-        os.remove(audio_file)
+    # Clean up the temporary audio file
+    os.remove(audio_file)
