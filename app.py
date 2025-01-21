@@ -35,15 +35,19 @@ def generate_script(prompt, genre, max_length=1000):
     
     genre_prompt = genre_prompts.get(genre, "")
     full_prompt = genre_prompt + prompt
-    
-    # Format the prompt into a conversation-style input (list of message dicts)
+
+    # Format the input messages correctly
     messages = [{"role": "user", "content": full_prompt}]
     
-    # Query the Groq model using the correct method
-    response = groq_model.generate(messages, max_length=max_length)  # Pass formatted messages
-    script = response['generated_text'].strip()  # Extract generated text
-    
-    return script
+    try:
+        # Query the Groq model
+        response = groq_model.generate(messages=messages, max_tokens=max_length)  # Corrected parameter: `max_tokens`
+        script = response.get("text", "").strip()  # Extract `text` key for the script
+        return script or "No text generated. Please try again with a different prompt or genre."
+    except Exception as e:
+        # Log or handle the exception
+        return f"Error generating script: {str(e)}"
+
 
 # Function to enhance the script with formatting and structure
 def enhance_script(script):
