@@ -1,84 +1,93 @@
-import streamlit as st
 import os
-import pyttsx3
-import re
-from langchain_groq import ChatGroq  # Import Groq for LLaMA integration
+import streamlit as st
 from dotenv import load_dotenv
+import re
+from gtts import gTTS
+from tempfile import NamedTemporaryFile
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-
+# Load environment variables (e.g., for API keys, etc.)
 load_dotenv()
+
 # Load API keys
-groq_api_key = os.getenv("GROQ_API_KEY")
-if not groq_api_key:
-    raise ValueError("GROQ_API_KEY not found in environment variables.")
+huggingface_api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+if not huggingface_api_key:
+    raise ValueError("HUGGINGFACE_API_KEY not found in environment variables.")
 
-groq_model = ChatGroq(
-    groq_api_key=groq_api_key,
-    model_name="llama-3.1-70b-versatile",  # Use the LLaMA model from Groq
-    temperature=0.7
-)
+# Initialize Hugging Face model (OPT model)
+model_name = "facebook/opt-1.3b"  # Example OPT model
+model = AutoModelForCausalLM.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-def generate_script(prompt, max_length=600):
-    """Generates a movie script snippet using Groq LLaMA."""
-    try:
-        messages = [
-            {"role": "system", "content": "You are a professional movie script writer. Write creative, engaging, and detailed movie scripts."},
-            {"role": "user", "content": prompt}
-        ]
-        response = groq_model.generate(messages, max_length=max_length)
-        script = response.get('generated_text', '').strip()
-        if not script:
-            raise ValueError("The model returned an empty response.")
-        return script
-    except Exception as e:
-        return f"Error generating script: {e}"
+def generate_script(prompt, genre, max_length=1000):
+    """Generates a meaningful movie script snippet based on the given prompt and genre using the OPT model."""
+    if not prompt.strip():
+        return "Please provide a valid prompt."
+    
+    # Define genre-specific instructions
+    genre_prompts = {
+        "Action": "Write an intense and fast-paced action movie scene.",
+        "Comedy": "Write a humorous and lighthearted comedy scene.",
+        "Romance": "Write a heartfelt and emotional romantic scene.",
+        "Horror": "Write a suspenseful and spooky horror movie scene.",
+        "Sci-Fi": "Write a futuristic science fiction scene.",
+        "Drama": "Write a deep and emotionally charged drama scene."
+    }
+    
+    # Combine genre instructions and user prompt
+    full_prompt = f"{genre_prompts.get(genre, '')} {prompt}"
+    
+    # Encode the input prompt and generate the response using the OPT model
+    inputs = tokenizer(full_prompt, return_tensors="pt")
+    outputs = model.generate(inputs["input_ids"], max_length=max_length, num_return_sequences=1)
+    
+    # Decode the output and clean up the generated script
+    script = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+    if not script:
+        return "Error: The model returned an empty response."
+    
+    return script
 
-# Extract skills/roles from the generated script
-def extract_skills_from_script(script):
-    """Extract possible skills/roles from the movie script."""
-    roles_list = ["Acting", "Directing", "Editing", "Animation", "VFX", "Voiceover"]
-    found_roles = []
-    for role in roles_list:
-        if re.search(r'\b' + re.escape(role) + r'\b', script, re.IGNORECASE):
-            found_roles.append(role)
-    return found_roles
+def enhance_script(script):
+    """Enhances the script by adding structure like scene headers and dialogues."""
+    scenes = script.split("\n\n")
+    enhanced_script = ""
+    for i, scene in enumerate(scenes):
+        enhanced_script += f"SCENE {i+1}:\n"
+        sentences = re.split(r'(?<=[.!?]) +', scene)
+        for sentence in sentences:
+            if sentence.strip():
+                enhanced_script += f"    {sentence.strip()}\n"
+        enhanced_script += "\n"
+    return enhanced_script
 
-# Offline TTS with pyttsx3
 def text_to_audio(text):
-    """Converts the provided text to an audio file using pyttsx3."""
-    engine = pyttsx3.init()
-    temp_audio = "output_audio.mp3"
-    engine.save_to_file(text, temp_audio)
-    engine.runAndWait()
-    return temp_audio
+    """Converts the provided text to an audio file using gTTS."""
+    tts = gTTS(text, lang='en')
+    temp_audio = NamedTemporaryFile(delete=False, suffix=".mp3")
+    tts.save(temp_audio.name)
+    return temp_audio.name
 
 # Streamlit App
 st.title("Decentralized Autonomous Movie Creation System")
 
-# Section 1: Script Generation
 st.header("AI-Powered Script Generator")
 prompt = st.text_area("Enter a prompt for the movie script:")
-max_length = st.slider("Select the script length (tokens):", min_value=300, max_value=1000, value=600)
+genre = st.selectbox("Select Movie Genre", ["Action", "Comedy", "Romance", "Horror", "Sci-Fi", "Drama"])
+max_length = st.slider("Select the script length (tokens):", min_value=300, max_value=1500, value=1000)
 
 if st.button("Generate Script"):
-    script_snippet = generate_script(prompt, max_length=max_length)
+    script_snippet = generate_script(prompt, genre, max_length=max_length)
     if "Error" in script_snippet:
         st.warning(script_snippet)
     else:
+        enhanced_snippet = enhance_script(script_snippet)
         st.subheader("Generated Script:")
-        st.write(script_snippet)
+        st.text_area("Enhanced Script:", value=enhanced_snippet, height=400)
 
-        # Extract skills/roles
-        extracted_skills = extract_skills_from_script(script_snippet)
-        if extracted_skills:
-            st.subheader("Extracted Skills/Roles:")
-            st.write(", ".join(extracted_skills))
-        else:
-            st.warning("No relevant skills or roles found in the script.")
-        
-        # Convert script to audio
         st.subheader("Audio Version of the Script:")
-        audio_file = text_to_audio(script_snippet)
+        audio_file = text_to_audio(enhanced_snippet)
         with open(audio_file, "rb") as audio:
             st.download_button("Download Audio File", audio, file_name="script_audio.mp3", mime="audio/mp3")
+
         os.remove(audio_file)
