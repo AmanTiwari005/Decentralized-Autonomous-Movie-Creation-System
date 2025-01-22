@@ -4,3 +4,7 @@ pyttsx3
 re
 langchain_groq
 dotenv 
+import os
+ gTTS
+tempfile 
+transformers
