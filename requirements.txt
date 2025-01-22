@@ -1,6 +1,6 @@
-streamlit
-gtts
-python-dotenv
+streamlit 
+os
+pyttsx3
+re
 langchain_groq
-openai
-llama-cpp-python
+dotenv 
