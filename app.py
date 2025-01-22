@@ -16,38 +16,49 @@ def init_groq_model():
     return ChatGroq(
         groq_api_key=groq_api_key, model_name="llama-3.1-70b-versatile", temperature=0.2
     )
+llm_groq = init_groq_model()
 
-
-# Initialize the Groq model
-groq_model = init_groq_model()
-
-# Function to generate script based on prompt and genre using Groq (Llama model)
 def generate_script(prompt, genre, max_length=1000):
     """Generates a meaningful movie script snippet based on the given prompt and genre using Groq."""
     if not prompt.strip():
         return "Please provide a valid prompt."
-    
-    # Adjust the prompt based on the selected genre
+
     genre_prompts = {
-        "Action": "Create an intense and fast-paced action scene where ",
-        "Comedy": "Write a funny scene that involves a humorous misunderstanding where ",
-        "Romance": "Write a heartfelt romantic scene where ",
-        "Horror": "Write a spooky and suspenseful horror scene where ",
-        "Sci-Fi": "Create a futuristic science fiction scene where ",
-        "Drama": "Write a deep emotional drama scene where "
+        "Action": "Write an intense and fast-paced action scene where ",
+        "Comedy": "Write a humorous scene involving a misunderstanding where ",
+        "Romance": "Write a heartfelt romantic moment where ",
+        "Horror": "Write a spooky and suspenseful horror moment where ",
+        "Sci-Fi": "Write a futuristic science fiction sequence where ",
+        "Drama": "Write a deep emotional drama moment where ",
     }
-    
+
     genre_prompt = genre_prompts.get(genre, "")
     full_prompt = genre_prompt + prompt
-    
-    # Format the prompt into a conversation-style input (list of message dicts)
-    messages = [{"role": "user", "content": full_prompt}]
-    
-    # Query the Groq model using the correct method
-    response = groq_model.generate(messages, max_length=max_length)  # Pass formatted messages
-    script = response['generated_text'].strip()  # Extract generated text
-    
-    return script
+
+    # Test with a variety of roles or without a role
+    possible_roles = ["user", "assistant", "system", None]
+
+    for role in possible_roles:
+        try:
+            messages = [{"role": role, "content": full_prompt}] if role else [{"content": full_prompt}]
+            print(f"Debugging messages (role={role}):", messages)
+
+            # Generate script using the Groq model
+            response = llm_groq.generate(messages, max_length=max_length)
+            print("Groq Response:", response)
+
+            script = response.get('generated_text', '').strip()
+            if script:
+                return script
+            else:
+                raise ValueError("The model did not generate a response. Trying the next role...")
+        except TypeError as e:
+            print(f"TypeError with role={role}: {e}. Trying the next role...")
+        except Exception as e:
+            print(f"Error with role={role}: {e}. Trying the next role...")
+
+    return "All attempts failed. Please check the Groq API documentation or contact support."
+
 
 # Function to enhance the script with formatting and structure
 def enhance_script(script):
