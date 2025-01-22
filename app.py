@@ -1,11 +1,14 @@
+
 import os
 import streamlit as st
+from dotenv import load_dotenv
 import re
 from gtts import gTTS
 from tempfile import NamedTemporaryFile
 from langchain_groq import ChatGroq  
 
-# Function to initialize the Groq model
+load_dotenv()
+# Initialize GROQ chat model
 def init_groq_model():
     groq_api_key = os.getenv('GROQ_API_KEY')
     if not groq_api_key:
@@ -13,6 +16,7 @@ def init_groq_model():
     return ChatGroq(
         groq_api_key=groq_api_key, model_name="llama-3.1-70b-versatile", temperature=0.2
     )
+
 
 # Initialize the Groq model
 groq_model = init_groq_model()
