@@ -15,7 +15,7 @@ if not huggingface_api_key:
     raise ValueError("HUGGINGFACE_API_KEY not found in environment variables.")
 
 # Initialize Hugging Face model (OPT model)
-model_name = "facebook/opt-1.3b"  # Example OPT model
+model_name = "facebook/opt-125m"  # Smaller model
 model = AutoModelForCausalLM.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
