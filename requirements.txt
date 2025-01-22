@@ -1,10 +1,7 @@
 streamlit 
 os
-pyttsx3
 re
-langchain_groq
 dotenv 
-import os
- gTTS
+gTTS
 tempfile 
 transformers
